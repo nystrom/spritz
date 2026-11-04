@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('soda', {
     },
     generateSubtitles: (src) => ipcRenderer.invoke('subtitle:generate', { src }), // Whisper → {ok, srt|error}
     onlineSubtitles: (src, lang) => ipcRenderer.invoke('subtitle:online', { src, lang }), // OpenSubtitles → {ok, srt, name|error}
+    syncSubtitles: (src, srt) => ipcRenderer.invoke('subtitle:sync', { src, srt }), // ffsubsync-style → {ok, srt, offset|error}
     setSubDelay: (n) => ipcRenderer.send('player:setProperty', { name: 'sub-delay', value: n }),
     setHwdec: (mode) => ipcRenderer.send('player:setProperty', { name: 'hwdec', value: mode }),
     setShaders: (mode) => ipcRenderer.send('player:setShaders', { mode }), // Anime4K: 'A'|'B'|'C'|null
