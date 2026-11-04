@@ -30,7 +30,9 @@ const PROP_ALLOW = new Set([
   'sub-back-color',
   'sub-border-size',
   'sub-codepage',
+  'sub-color',
   'sub-delay',
+  'sub-font',
   'sub-font-size',
   'time-pos',               // seek
   'video-aspect-override',

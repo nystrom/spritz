@@ -1073,7 +1073,7 @@ function showSponsorToast(cat) { toast('⏭ Skipped ' + (SPONSOR_LABEL[cat] || c
 // ---- Settings (persisted in localStorage; the single source of truth for video toggles) ----
 const settingsModal = $('#settings-modal');
 const settings = (() => {
-  const def = { interpolation: false, anime4k: '', skipSponsors: true, subSize: 46, subBg: false, requireVpn: false, repeat: 'off', shuffle: false };
+  const def = { interpolation: false, anime4k: '', skipSponsors: true, subSize: 46, subBg: false, subColor: 'white', subFont: 'sans-serif', requireVpn: false, repeat: 'off', shuffle: false };
   try { return Object.assign(def, JSON.parse(localStorage.getItem('spritz-settings') || '{}')); } catch (e) { return def; }
 })();
 function saveSettings() { try { localStorage.setItem('spritz-settings', JSON.stringify(settings)); } catch (e) {} }
@@ -1098,6 +1098,15 @@ function setSubBg(on) {
   soda.player.setProperty('sub-border-size', on ? 0 : 3);
   saveSettings();
 }
+const SUB_COLORS = { white: '#FFFFFF', yellow: '#FFFF00' };
+function setSubColor(name) {
+  settings.subColor = SUB_COLORS[name] ? name : 'white'; $('#set-subcolor').value = settings.subColor;
+  soda.player.setProperty('sub-color', SUB_COLORS[settings.subColor]); saveSettings();
+}
+function setSubFont(font) {
+  settings.subFont = String(font || 'sans-serif'); $('#set-subfont').value = settings.subFont;
+  soda.player.setProperty('sub-font', settings.subFont); saveSettings();
+}
 function setRequireVpn(on) { settings.requireVpn = !!on; $('#set-requirevpn').checked = !!on; saveSettings(); refreshVpnState(); }
 async function refreshVpnState() {
   let v = { active: false }; try { v = await soda.vpnStatus(); } catch (e) {}
@@ -1111,13 +1120,13 @@ function setSkipSponsors(on) {
 }
 function applySettings() {
   setInterpolation(settings.interpolation); setAnime4k(settings.anime4k); setSkipSponsors(settings.skipSponsors);
-  setSubSize(settings.subSize); setSubBg(settings.subBg);
+  setSubSize(settings.subSize); setSubBg(settings.subBg); setSubColor(settings.subColor); setSubFont(settings.subFont);
   soda.player.setProperty('sub-codepage', 'auto'); // uchardet: auto-detect external-subtitle charset (no more mojibake)
   try { soda.cast.setManualHosts(settings.castHosts || ''); } catch (e) {} // manual TV addresses active from launch
 }
 function openSettings() {
   $('#set-interp').checked = settings.interpolation; $('#set-anime4k').value = settings.anime4k; $('#set-sponsors').checked = settings.skipSponsors;
-  $('#set-subsize').value = String(settings.subSize); $('#set-subbg').checked = settings.subBg; $('#set-requirevpn').checked = settings.requireVpn;
+  $('#set-subsize').value = String(settings.subSize); $('#set-subbg').checked = settings.subBg; $('#set-subcolor').value = settings.subColor; $('#set-subfont').value = settings.subFont; $('#set-requirevpn').checked = settings.requireVpn;
   $('#set-cast-hosts').value = settings.castHosts || '';
   refreshVpnState();
   settingsModal.classList.remove('hidden');
@@ -1129,6 +1138,8 @@ $('#set-anime4k').addEventListener('change', (e) => setAnime4k(e.target.value));
 $('#set-sponsors').addEventListener('change', (e) => setSkipSponsors(e.target.checked));
 $('#set-subsize').addEventListener('change', (e) => setSubSize(e.target.value));
 $('#set-subbg').addEventListener('change', (e) => setSubBg(e.target.checked));
+$('#set-subcolor').addEventListener('change', (e) => setSubColor(e.target.value));
+$('#set-subfont').addEventListener('change', (e) => setSubFont(e.target.value));
 $('#set-requirevpn').addEventListener('change', (e) => setRequireVpn(e.target.checked));
 $('#settings-close').addEventListener('click', closeSettings);
 settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettings(); });
