@@ -23,9 +23,8 @@ const { ipv4 } = require('./ipc-validate'); // host values that reach a command 
 // when discovery runs, castv2-client only when a cast is loaded. Deferring them keeps them out of
 // launch. (Deferring the MODULE from main.js wouldn't achieve this — main wires cast.on(...) at
 // startup, which constructs it regardless — so the laziness has to live here.)
-let multicastDns = null, dnsTxt = null, castv2 = null;
+let multicastDns = null, castv2 = null;
 const mdnsLib = () => (multicastDns || (multicastDns = require('multicast-dns')));
-const txtLib = () => (dnsTxt || (dnsTxt = require('dns-txt')()));
 const castLib = () => (castv2 || (castv2 = require('castv2-client')));
 const deviceProfile = require('./device-profile'); // one definition of what a receiver can decode
 const { createDiscoveryHealth } = require('./discovery-health');
@@ -51,6 +50,7 @@ module.exports = function createCast() {
   const ev = new EventEmitter();
   const devices = new Map(); // host → { host, name }
   let mdns = null, timer = null, discovering = false;
+  const castInstances = new Set(), mdnsSrv = new Map(), mdnsAddr = new Map(), mdnsTxt = new Map(); // mDNS records, correlated across packets
   let discoveryGeneration = 0, earlyRetry = null;
   const discoveryRequests = new Set(), discoverySockets = new Map();
   const health = createDiscoveryHealth('cast', state => ev.emit('discovery', state), { setTimeout, clearTimeout });
@@ -164,6 +164,7 @@ module.exports = function createCast() {
     if (discovering && !retry) { emitDevices(); return; }
     if (retry) { stopDiscovery(); devices.clear(); lastProbe.clear(); }
     discovering = true;
+    castInstances.clear(); mdnsSrv.clear(); mdnsAddr.clear(); mdnsTxt.clear();
     discoveryGeneration++;
     health.start();
     emitDevices();
@@ -186,24 +187,40 @@ module.exports = function createCast() {
   function onMdns(pkt) {
     // This runs synchronously inside the UDP datagram handler, so ANY throw here becomes an uncaught
     // exception that crashes the whole main process. Some LAN devices send malformed/non-Buffer TXT
-    // records; dns-txt's buffer-indexof then throws "buffer is not a buffer". Guard everything.
+    // records. Guard everything.
     try {
       const answers = (pkt.answers || []).concat(pkt.additionals || []);
-      if (!answers.some((r) => r.type === 'PTR' && r.name === '_googlecast._tcp.local')) return;
-      let host = null, name = null, model = null;
+      // A Chromecast's PTR / SRV / TXT / A records are often split across packets (and a packet may
+      // carry several devices), so correlate them by name instead of requiring one packet with all.
+      const isCastInstance = (n) => /\._googlecast\._tcp\.local$/i.test(String(n || ''));
       for (const r of answers) {
-        if (r.type === 'A' && r.data) host = r.data;
-        if (r.type === 'TXT' && r.data != null) {
-          // r.data may be a Buffer, an array of Buffers, or junk. dns-txt only accepts a Buffer.
-          let buf = r.data;
-          if (Array.isArray(buf)) { try { buf = Buffer.concat(buf.filter(Buffer.isBuffer)); } catch (e) { buf = null; } }
-          if (Buffer.isBuffer(buf)) {
-            try { const t = txtLib().decode(buf); if (t) { if (t.fn) name = t.fn; if (t.md) model = t.md; } } catch (e) {}
+        if (r.type === 'PTR' && r.name === '_googlecast._tcp.local' && typeof r.data === 'string') castInstances.add(r.data);
+        else if (r.type === 'SRV' && isCastInstance(r.name) && r.data && r.data.target) { castInstances.add(r.name); mdnsSrv.set(r.name, r.data.target); }
+        else if (r.type === 'A' && r.data) mdnsAddr.set(String(r.name).toLowerCase(), r.data);
+        else if (r.type === 'TXT' && isCastInstance(r.name) && r.data != null) {
+          // multicast-dns has already split the TXT record into one 'key=value' Buffer per entry
+          // (length prefixes stripped), so parse those directly. Re-joining them and feeding dns-txt
+          // misread the bytes as length-prefixed, which silently lost every device name.
+          const t = {};
+          for (const e of [].concat(r.data)) {
+            if (!Buffer.isBuffer(e)) continue;
+            const kv = e.toString('utf8'), i = kv.indexOf('=');
+            if (i > 0) t[kv.slice(0, i).toLowerCase()] = kv.slice(i + 1);
           }
+          if (t.fn) mdnsTxt.set(r.name, { name: t.fn, model: t.md || null });
         }
       }
-      if (isAudioOnly(name, model)) return; // skip speakers / cast groups — they can't show video
-      addDevice(host, name, capsFromMdns(name, model));
+      const ask = (name, type) => { try { if (mdns) mdns.query({ questions: [{ name, type }] }); } catch (e) {} };
+      for (const inst of castInstances) {
+        const target = mdnsSrv.get(inst);
+        if (!target) { ask(inst, 'SRV'); continue; }
+        const host = mdnsAddr.get(String(target).toLowerCase());
+        if (!host) { ask(target, 'A'); continue; }
+        const txt = mdnsTxt.get(inst);
+        if (!txt) { ask(inst, 'TXT'); continue; }
+        if (isAudioOnly(txt.name, txt.model)) continue; // skip speakers / cast groups — they can't show video
+        addDevice(host, txt.name, capsFromMdns(txt.name, txt.model));
+      }
     } catch (e) { /* malformed mDNS packet — ignore, never crash discovery */ }
   }
 
