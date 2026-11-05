@@ -283,6 +283,16 @@ module.exports = function createCast() {
         finish();
       });
     });
+    // The 8s budget above is for a slow *response*. An address nobody answers on would burn the
+    // same 8s just failing to connect, and a /24 sweep is mostly such addresses: ~200 of them at
+    // 16 in flight took over two minutes, so devices past the first few never appeared. A LAN
+    // host that is up completes the TCP handshake in milliseconds, so cap the connect alone.
+    req.on('socket', s => {
+      if (!s.connecting) return;
+      const t = setTimeout(() => req.destroy(Object.assign(new Error('connect timed out'), { code: 'ETIMEDOUT' })), 2000);
+      s.once('connect', () => clearTimeout(t));
+      s.once('close', () => clearTimeout(t));
+    });
     discoveryRequests.add(req);
     req.on('error', error => { if (gen === discoveryGeneration && discovering) health.error(error); finish(); });
     req.on('timeout', () => { if (gen === discoveryGeneration && discovering) health.error({ code: 'ETIMEDOUT' }); req.destroy(); finish(); });
