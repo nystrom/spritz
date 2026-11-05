@@ -268,6 +268,23 @@
         <label class="switch"><input type="checkbox" id="set-subbg" aria-label="Subtitle background" /><span class="switch-track"></span></label>
       </div>
       <div class="setting-row">
+        <div class="setting-text"><div class="setting-name">Subtitle color</div>
+          <div class="setting-desc">Text color for plain-text subtitles (styled ASS subtitles keep their own).</div></div>
+        <select id="set-subcolor" aria-label="Subtitle color">
+          <option value="white" selected>White</option><option value="yellow">Yellow</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text"><div class="setting-name">Subtitle font</div>
+          <div class="setting-desc">Typeface for on-screen subtitles.</div></div>
+        <select id="set-subfont" aria-label="Subtitle font">
+          <option value="sans-serif" selected>Sans-serif (default)</option><option value="serif">Serif</option>
+          <option value="monospace">Monospace</option><option value="Helvetica">Helvetica</option>
+          <option value="Arial">Arial</option><option value="Georgia">Georgia</option>
+          <option value="Courier New">Courier New</option>
+        </select>
+      </div>
+      <div class="setting-row">
         <div class="setting-text"><div class="setting-name">Only torrent over VPN</div>
           <div class="setting-desc">Block torrents unless a VPN tunnel is active. <span id="vpn-state">VPN: checking…</span></div></div>
         <label class="switch"><input type="checkbox" id="set-requirevpn" aria-label="Only torrent over VPN" /><span class="switch-track"></span></label>

@@ -16,7 +16,7 @@ test('every property the app actually sets is permitted', () => {
   // Sourced from preload's fixed wrappers plus direct soda.player.setProperty calls in the
   // renderer. If a feature stops working after a guard change, it is because this list moved.
   for (const p of ['pause', 'time-pos', 'volume', 'mute', 'aid', 'sid', 'sub-delay', 'hwdec',
-    'audio-delay', 'speed', 'sub-back-color', 'sub-border-size', 'sub-codepage', 'sub-font-size',
+    'audio-delay', 'speed', 'sub-back-color', 'sub-border-size', 'sub-codepage', 'sub-font-size', 'sub-color', 'sub-font',
     'video-aspect-override', 'video-zoom']) {
     assert.ok(allowProperty(p), p + ' is used by the app and must be allowed');
   }
