@@ -773,8 +773,23 @@ subAddBtn.addEventListener('click', async () => {
     properties: ['openFile'],
     filters: [{ name: 'Subtitles', extensions: ['srt', 'ass', 'ssa', 'sub', 'smi', 'vtt'] }]
   });
-  if (ownsSubtitle(owner) && r && !r.canceled && r.filePaths && r.filePaths[0]) soda.player.addSubtitleFile(r.filePaths[0]);
+  if (ownsSubtitle(owner) && r && !r.canceled && r.filePaths && r.filePaths[0]) addSyncedSubtitle(owner, r.filePaths[0]);
 });
+// Add a subtitle, auto-synced to the audio when possible (local file, .srt). The unsynced file is
+// added first so a slow or failed analysis never delays or loses the subtitle; a good sync then
+// replaces it.
+async function addSyncedSubtitle(owner, file, label) {
+  soda.player.addSubtitleFile(file);
+  if (!currentLocalPath || !/\.srt$/i.test(file)) return;
+  const media = currentLocalPath;
+  toast('Syncing subtitles…', 2500);
+  const r = await soda.player.syncSubtitles(media, file);
+  if (!ownsSubtitle(owner) || media !== currentLocalPath) return;
+  if (r && r.ok) {
+    soda.player.addSubtitleFile(r.srt, { name: (label || 'Subtitles') + ' (synced)' });
+    toast('Subtitles synced (' + (r.offset >= 0 ? '+' : '') + r.offset.toFixed(2) + 's) ✓', 3000);
+  } else toast((r && r.error) || 'Subtitle sync failed', 3000);
+}
 $('#sub-online').addEventListener('click', async () => {
   const owner = subtitleOwner();
   closeMenus();
@@ -782,7 +797,7 @@ $('#sub-online').addEventListener('click', async () => {
   toast('Searching OpenSubtitles…', 2500);
   const res = await soda.player.onlineSubtitles(currentLocalPath);
   if (!ownsSubtitle(owner)) return;
-  if (res && res.ok) { soda.player.addSubtitleFile(res.srt); toast('Subtitles added: ' + (res.name || 'OpenSubtitles') + ' ✓', 3000); }
+  if (res && res.ok) { addSyncedSubtitle(owner, res.srt, res.name); toast('Subtitles added: ' + (res.name || 'OpenSubtitles') + ' ✓', 3000); }
   else toast((res && res.error) || 'No subtitles found — try Whisper', 4000);
 });
 // Whisper is shelved (see index.html): it works, but it is too slow and too inaccurate on a

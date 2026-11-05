@@ -146,6 +146,7 @@
   "dependencies": {
     "castv2-client": "^1.2.0",
     "dns-txt": "^2.0.2",
+    "fft.js": "4.0.4",
     "multicast-dns": "^7.2.5",
     "webtorrent": "^3.0.16"
   },
