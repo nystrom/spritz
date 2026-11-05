@@ -1073,8 +1073,12 @@ function showSponsorToast(cat) { toast('⏭ Skipped ' + (SPONSOR_LABEL[cat] || c
 // ---- Settings (persisted in localStorage; the single source of truth for video toggles) ----
 const settingsModal = $('#settings-modal');
 const settings = (() => {
-  const def = { interpolation: false, anime4k: '', skipSponsors: true, subSize: 46, subBg: false, subColor: 'white', subFont: 'sans-serif', requireVpn: false, repeat: 'off', shuffle: false };
-  try { return Object.assign(def, JSON.parse(localStorage.getItem('spritz-settings') || '{}')); } catch (e) { return def; }
+  const def = { interpolation: false, anime4k: '', skipSponsors: true, subSize: 46, subStyle: 'outline', subColor: '#FFFFFF', subFont: 'sans-serif', requireVpn: false, repeat: 'off', shuffle: false };
+  try {
+    const saved = JSON.parse(localStorage.getItem('spritz-settings') || '{}');
+    if (saved.subBg && !saved.subStyle) saved.subStyle = 'background'; // old on/off "Subtitle background" toggle
+    return Object.assign(def, saved);
+  } catch (e) { return def; }
 })();
 function saveSettings() { try { localStorage.setItem('spritz-settings', JSON.stringify(settings)); } catch (e) {} }
 // Manual TV addresses. Discovery is best-effort by nature — multicast can be filtered, a TV's
@@ -1091,17 +1095,22 @@ function setSubSize(px) {
   settings.subSize = parseInt(px, 10) || 46; $('#set-subsize').value = String(settings.subSize);
   soda.player.setProperty('sub-font-size', settings.subSize); saveSettings();
 }
-function setSubBg(on) {
-  settings.subBg = !!on; $('#set-subbg').checked = !!on;
-  // translucent box behind text vs. plain outlined text
-  soda.player.setProperty('sub-back-color', on ? '#80000000' : '#00000000');
-  soda.player.setProperty('sub-border-size', on ? 0 : 3);
+// How subtitles separate from the video. One rule drives every mpv property involved so switching
+// modes never leaves a stale border/shadow/box from the previous one.
+const SUB_STYLES = {
+  outline:    { 'sub-border-style': 'outline-and-shadow', 'sub-border-size': 3, 'sub-shadow-offset': 0, 'sub-back-color': '#00000000', 'sub-shadow-color': '#00000000' },
+  shadow:     { 'sub-border-style': 'outline-and-shadow', 'sub-border-size': 0, 'sub-shadow-offset': 4, 'sub-back-color': '#00000000', 'sub-shadow-color': '#CC000000' },
+  // in background-box mode mpv paints the box with sub-back-color; border-size is the box padding
+  background: { 'sub-border-style': 'background-box', 'sub-border-size': 2, 'sub-shadow-offset': 0, 'sub-back-color': '#B3000000', 'sub-shadow-color': '#00000000' }
+};
+function setSubStyle(name) {
+  settings.subStyle = SUB_STYLES[name] ? name : 'outline'; $('#set-substyle').value = settings.subStyle;
+  for (const [prop, val] of Object.entries(SUB_STYLES[settings.subStyle])) soda.player.setProperty(prop, val);
   saveSettings();
 }
-const SUB_COLORS = { white: '#FFFFFF', yellow: '#FFFF00' };
-function setSubColor(name) {
-  settings.subColor = SUB_COLORS[name] ? name : 'white'; $('#set-subcolor').value = settings.subColor;
-  soda.player.setProperty('sub-color', SUB_COLORS[settings.subColor]); saveSettings();
+function setSubColor(hex) {
+  settings.subColor = /^#[0-9a-f]{6}$/i.test(hex) ? hex : '#FFFFFF'; $('#set-subcolor').value = settings.subColor.toLowerCase();
+  soda.player.setProperty('sub-color', settings.subColor.toUpperCase()); saveSettings();
 }
 function setSubFont(font) {
   settings.subFont = String(font || 'sans-serif'); $('#set-subfont').value = settings.subFont;
@@ -1120,13 +1129,13 @@ function setSkipSponsors(on) {
 }
 function applySettings() {
   setInterpolation(settings.interpolation); setAnime4k(settings.anime4k); setSkipSponsors(settings.skipSponsors);
-  setSubSize(settings.subSize); setSubBg(settings.subBg); setSubColor(settings.subColor); setSubFont(settings.subFont);
+  setSubSize(settings.subSize); setSubStyle(settings.subStyle); setSubColor(settings.subColor); setSubFont(settings.subFont);
   soda.player.setProperty('sub-codepage', 'auto'); // uchardet: auto-detect external-subtitle charset (no more mojibake)
   try { soda.cast.setManualHosts(settings.castHosts || ''); } catch (e) {} // manual TV addresses active from launch
 }
 function openSettings() {
   $('#set-interp').checked = settings.interpolation; $('#set-anime4k').value = settings.anime4k; $('#set-sponsors').checked = settings.skipSponsors;
-  $('#set-subsize').value = String(settings.subSize); $('#set-subbg').checked = settings.subBg; $('#set-subcolor').value = settings.subColor; $('#set-subfont').value = settings.subFont; $('#set-requirevpn').checked = settings.requireVpn;
+  $('#set-subsize').value = String(settings.subSize); $('#set-substyle').value = settings.subStyle; $('#set-subcolor').value = settings.subColor.toLowerCase(); $('#set-subfont').value = settings.subFont; $('#set-requirevpn').checked = settings.requireVpn;
   $('#set-cast-hosts').value = settings.castHosts || '';
   refreshVpnState();
   settingsModal.classList.remove('hidden');
@@ -1137,7 +1146,7 @@ $('#set-interp').addEventListener('change', (e) => setInterpolation(e.target.che
 $('#set-anime4k').addEventListener('change', (e) => setAnime4k(e.target.value));
 $('#set-sponsors').addEventListener('change', (e) => setSkipSponsors(e.target.checked));
 $('#set-subsize').addEventListener('change', (e) => setSubSize(e.target.value));
-$('#set-subbg').addEventListener('change', (e) => setSubBg(e.target.checked));
+$('#set-substyle').addEventListener('change', (e) => setSubStyle(e.target.value));
 $('#set-subcolor').addEventListener('change', (e) => setSubColor(e.target.value));
 $('#set-subfont').addEventListener('change', (e) => setSubFont(e.target.value));
 $('#set-requirevpn').addEventListener('change', (e) => setRequireVpn(e.target.checked));
