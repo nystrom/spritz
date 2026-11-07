@@ -358,8 +358,13 @@ if (!gotLock) {
   // the CLI is funneled to the renderer's routeSource. Opens that arrive before the
   // renderer is ready are queued and flushed on first request.
   let pendingOpen = null, rendererReady = false;
-  app.setAsDefaultProtocolClient('magnet');
   app.setAsDefaultProtocolClient('spritz');
+  ipcMain.on('protocol:setMagnet', (_e, { enabled } = {}) => {
+    try {
+      if (enabled) app.setAsDefaultProtocolClient('magnet');
+      else app.removeAsDefaultProtocolClient('magnet');
+    } catch (e) {}
+  });
   function openSource(src) {
     if (!src) return;
     if (rendererReady) send('open-source', { src });

@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('soda', {
     add: (src) => ipcRenderer.send('torrent:add', { src }),
     selectFile: (i) => ipcRenderer.send('torrent:selectFile', { index: i }),
     cancel: () => ipcRenderer.send('torrent:cancel', {}),
+    setMagnetHandler: (enabled) => ipcRenderer.send('protocol:setMagnet', { enabled: !!enabled }),
     onMetadata: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on('torrent:metadata', h); return () => ipcRenderer.removeListener('torrent:metadata', h); },
     onProgress: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on('torrent:progress', h); return () => ipcRenderer.removeListener('torrent:progress', h); },
     onReady: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on('torrent:ready', h); return () => ipcRenderer.removeListener('torrent:ready', h); },

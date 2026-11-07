@@ -27,7 +27,7 @@ test('the menu triggers announce that they open a menu', () => {
 });
 
 test('sliders and inputs have accessible names', () => {
-  for (const id of ['seek', 'vol', 'home-code', 'receiver-code', 'url-input', 'url-referer', 'set-interp', 'set-sponsors', 'set-subbg', 'set-requirevpn', 'set-anime4k', 'set-cast-hosts', 'set-subsize']) {
+  for (const id of ['seek', 'vol', 'home-code', 'receiver-code', 'url-input', 'url-referer', 'set-interp', 'set-sponsors', 'set-subbg', 'set-requirevpn', 'set-magnet', 'set-anime4k', 'set-cast-hosts', 'set-subsize']) {
     const t = tagOf(id);
     assert.ok(t, id + ' missing');
     assert.ok(/aria-label="[^"]+"/.test(t.open) || new RegExp('<label[^>]*for="' + id + '"').test(html), id + ' has no accessible name');
@@ -60,4 +60,13 @@ test('contrast and motion: no sub-4.5:1 primary button, no low-opacity 11px text
   assert.ok(!/\.btn\.primary \{ background: var\(--accent\)/.test(css), 'primary button still uses the light accent with white text');
   assert.ok(/prefers-reduced-motion/.test(css));
   assert.ok(!/\.device-meta \{[^}]*opacity: \.55/.test(css), 'device-meta is still dimmed with opacity');
+});
+
+test('magnet protocol handler is opt-in via Settings, not registered unconditionally at startup', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main', 'main.js'), 'utf8');
+  assert.ok(!/^\s*app\.setAsDefaultProtocolClient\('magnet'\)/m.test(main.replace(/ipcMain\.on\('protocol:setMagnet'[\s\S]*?\}\);/, '')),
+    'main.js registers magnet protocol unconditionally at startup');
+  assert.ok(/ipcMain\.on\('protocol:setMagnet'/.test(main), 'protocol:setMagnet IPC handler missing');
+  assert.ok(/removeAsDefaultProtocolClient\('magnet'\)/.test(main), 'removeAsDefaultProtocolClient missing');
+  assert.ok(/magnetHandler:\s*false/.test(js), 'magnetHandler does not default to false');
 });
