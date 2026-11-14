@@ -27,7 +27,7 @@ test('the menu triggers announce that they open a menu', () => {
 });
 
 test('sliders and inputs have accessible names', () => {
-  for (const id of ['seek', 'vol', 'home-code', 'receiver-code', 'url-input', 'url-referer', 'set-interp', 'set-sponsors', 'set-subbg', 'set-requirevpn', 'set-anime4k', 'set-cast-hosts', 'set-subsize']) {
+  for (const id of ['seek', 'vol', 'home-code', 'receiver-code', 'url-input', 'url-referer', 'set-interp', 'set-sponsors', 'set-substyle', 'set-subcolor', 'set-subfont', 'set-requirevpn', 'set-anime4k', 'set-cast-hosts', 'set-subsize']) {
     const t = tagOf(id);
     assert.ok(t, id + ' missing');
     assert.ok(/aria-label="[^"]+"/.test(t.open) || new RegExp('<label[^>]*for="' + id + '"').test(html), id + ' has no accessible name');
