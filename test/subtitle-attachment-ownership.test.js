@@ -11,7 +11,7 @@ function fixture() {
   const node = (name) => ({ addEventListener: (_, fn) => { handlers[name] = fn; }, classList: { remove() {} } });
   const ctx = { clearErrorStop() {}, applyRouteHints() {}, sourceIntent: 1, currentLocalPath: '/A.mp4', engine: 'mpv', closeMenus() {}, toast() {}, showSponsorToast() {},
     subAddBtn: node('picker'), $: node,
-    soda: { dialog: { openFile: deferred }, player: { onlineSubtitles: deferred, generateSubtitles: deferred, addSubtitleFile: (file) => attachments.push(file) } } };
+    soda: { dialog: { openFile: deferred }, player: { onlineSubtitles: deferred, generateSubtitles: deferred, addSubtitleFile: (file) => attachments.push(file), syncSubtitles: async () => ({ ok: false }) } } };
   vm.createContext(ctx);
   const owner = source.slice(source.indexOf('let playbackTargetIntent ='), source.indexOf('function ownsSubtitle('));
   const owns = source.slice(source.indexOf('function ownsSubtitle('), source.indexOf('\n', source.indexOf('function ownsSubtitle(')));

@@ -19,6 +19,7 @@ const { spawn } = require('child_process');
 const mpvGuard = require('./mpv-guard'); // allow lists for renderer-driven mpv properties/commands
 const { presentTargets } = require('./receiver-presentation');
 const { runtimeIdentity } = require('./runtime-identity');
+const { syncSrt } = require('./subsync');
 const { localMediaPath, readTextCapped, httpUrl } = require('./ipc-validate'); // renderer-supplied values
 const { isAllowedNavigation } = require('./nav-guard'); // window navigation policy
 
@@ -898,6 +899,23 @@ if (!gotLock) {
       fs.writeFileSync(out, srt);
       return { ok: true, srt: out, name };
     } catch (e) { return { ok: false, error: e.message || 'OpenSubtitles failed' }; }
+  });
+
+  // Automatic sync (ffsubsync algorithm, see subsync.js): align an .srt to the media's speech and
+  // write the result to a temp copy — the user's own file is never modified. Best effort: any
+  // failure or weak match returns { ok: false } and the caller keeps the original subtitles.
+  ipcMain.handle('subtitle:sync', async (_e, { src, srt } = {}) => {
+    const media = localMediaPath(src), file = localMediaPath(srt);
+    if (!media || !file || !/\.srt$/i.test(file)) return { ok: false, error: 'Only .srt files can be synced' };
+    const text = readTextCapped(file, 4 * 1024 * 1024);
+    if (text === null) return { ok: false, error: 'Could not read subtitle file' };
+    try {
+      const r = await syncSrt({ ffmpeg: FFMPEG, media, srtText: text });
+      if (!r) return { ok: false, error: 'Could not find a confident sync' };
+      const out = path.join(app.getPath('temp'), 'spritz-sync-' + Date.now() + '.srt');
+      fs.writeFileSync(out, r.srt);
+      return { ok: true, srt: out, offset: r.offset, scale: r.scale };
+    } catch (e) { return { ok: false, error: e.message || 'Subtitle sync failed' }; }
   });
 
   // External subtitle file the user attached (also sub-add'd to mpv in the renderer). Remember it so
